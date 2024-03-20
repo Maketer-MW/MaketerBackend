@@ -1,11 +1,20 @@
 import express from "express";
 import cors from "cors";
-import loginCtrl from "./app/src/Login/login.ctrl.js";
+import {
+  uselogin,
+  accesstoken,
+  refreshtoken,
+  loginsuccess,
+  logout,
+} from "./app/src/Login/login.ctrl.js";
 import restCtrl from "./app/src/restaurants/restaurants.ctrl.js";
 import reviewCtrl from "./app/src/Reviews/review.ctrl.js";
 import userCtrl from "./app/src/User/user.ctrl.js";
+
 import pkg from "pg";
 import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
+import dotenv from "dotenv";
 
 const { Pool } = pkg;
 
@@ -18,48 +27,23 @@ const pool = new Pool({
 });
 
 const app = express();
-
+dotenv.config();
 app.use(express.json());
+app.use(cookieParser());
 
 const corsOptions = {
   origin: "http://localhost:5173",
   optionsSuccessStatus: 200,
+  credentials: true,
 };
 app.use(cors(corsOptions));
 
-// JWT 시크릿 키 설정
-const jwtSecretKey = "your_secret_key_here";
-
 // 로그인 처리 엔드포인트
-app.post("/api/v1/login", (req, res) => {
-  const { email, password } = req.body;
-
-  // 사용자 인증 로직 수행
-  // 로그인 성공 시 토큰 생성
-  const token = jwt.sign({ email }, jwtSecretKey, { expiresIn: "1h" });
-
-  // 클라이언트에게 토큰 전송
-  res.json({ token });
-});
-
-// JWT 검증 미들웨어
-function authenticateToken(req, res, next) {
-  const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
-  if (token == null) return res.sendStatus(401);
-
-  jwt.verify(token, jwtSecretKey, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.user = user;
-    next();
-  });
-}
-
-// 예시: JWT를 사용하여 보호된 엔드포인트
-app.get("/api/v1/protected_resource", authenticateToken, (req, res) => {
-  // 인증된 사용자만 접근 가능한 리소스
-  res.json({ message: "인증 성공" });
-});
+app.post("/api/v1/login", uselogin);
+app.get("/api/v1/accesstoken", accesstoken);
+app.get("/api/v1/refreshtoken", refreshtoken);
+app.get("/api/v1/login/success", loginsuccess);
+app.post("/api/v1/logout", logout);
 
 // 예시: get 식당 정보 조회
 app.get("/api/v1/restaurants", restCtrl.restrs);
